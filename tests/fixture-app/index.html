@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Demo Fixture</title>
+    <style>
+      body { font: 18px system-ui; margin: 0; display: grid; min-height: 100vh; place-items: center; background: #f7f4ed; color: #17212b; }
+      main { width: min(34rem, 90vw); padding: 2rem; border: 1px solid #ddd; border-radius: 1rem; background: white; }
+      label, input, button { display: block; width: 100%; box-sizing: border-box; }
+      input, button { margin-top: .5rem; padding: .8rem; font: inherit; }
+      button { margin-top: 1rem; background: #087a45; color: white; border: 0; border-radius: .5rem; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <form id="form">
+        <h1>Create profile</h1>
+        <label>Display name<input aria-label="Display name" required></label>
+        <button>Continue</button>
+      </form>
+      <section id="complete" hidden><h1>Complete</h1><p>Your profile is ready.</p></section>
+    </main>
+    <script>
+      document.documentElement.lang = localStorage.getItem('application-language') || 'en-US';
+      document.querySelector('#form').addEventListener('submit', event => {
+        event.preventDefault();
+        event.submitter.disabled = true;
+        event.submitter.textContent = 'Loading…';
+        setTimeout(() => {
+          document.querySelector('#form').hidden = true;
+          document.querySelector('#complete').hidden = false;
+        }, 100);
+      });
+    </script>
+  </body>
+</html>

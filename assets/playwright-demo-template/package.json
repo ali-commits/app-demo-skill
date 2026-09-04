@@ -1,0 +1,12 @@
+{
+  "name": "narrated-app-demo-recording",
+  "private": true,
+  "scripts": {
+    "test": "bun test",
+    "record": "bun run record.ts",
+    "rehearse": "bun run record.ts --fast"
+  },
+  "devDependencies": {
+    "playwright": "^1.58.0"
+  }
+}

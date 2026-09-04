@@ -1,0 +1,27 @@
+{
+  "title": "Fixture demo",
+  "locale": "id-ID",
+  "voice": {
+    "provider": "supplied",
+    "model": "supplied",
+    "voice_id": "narrator",
+    "language": "id"
+  },
+  "chapters": [
+    {
+      "id": "01-intro",
+      "narration": "Selamat datang.",
+      "audio_path": "audio/01-intro.wav",
+      "duration_seconds": 1.2,
+      "cues": [{"id": "intro", "at_seconds": 0.1, "action": "Open the application"}]
+    },
+    {
+      "id": "02-signup",
+      "narration": "Masukkan nama sekolah.",
+      "audio_path": "audio/02-signup.wav",
+      "duration_seconds": 2.0,
+      "cues": [{"id": "school-name", "at_seconds": 0.5, "action": "Fill the school name"}]
+    }
+  ],
+  "master_audio_path": "audio/master.wav"
+}

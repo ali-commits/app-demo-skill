@@ -1,0 +1,4 @@
+interface:
+  display_name: "Narrated App Demo"
+  short_description: "Create synchronized narrated application demos"
+  default_prompt: "Create a narrated demo or tutorial for this application."
