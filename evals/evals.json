@@ -1,0 +1,41 @@
+{
+  "skill_name": "narrated-app-demo",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I need a five-minute Indonesian product demo of our local school portal. Help me define the journey, write the narration, generate a few ElevenLabs voice samples for approval, and automate a Playwright recording whose actions match the final audio.",
+      "expected_output": "A gated production workflow with an approved specification, localized narration and storyboard, voice auditions before paid full generation, timestamps derived from actual audio, browser rehearsal, recording, and verification.",
+      "files": [],
+      "expectations": [
+        "The workflow requests approval of a demo specification before writing the final storyboard.",
+        "The workflow auditions multiple comparable voice samples before full paid generation.",
+        "The browser cue timing is derived from the generated audio rather than estimated reading speed.",
+        "The output includes rehearsal and final verification stages."
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "The Arabic voice-over and MP4 for our onboarding tutorial are already finished, but the clicks drift out of sync after the second chapter and one screen briefly appears in English. Diagnose and repair the demo without regenerating audio unless it is actually defective.",
+      "expected_output": "Validation of supplied audio and recording, transcription-based cue repair, correct Arabic locale from the opening frame, targeted re-recording, and audiovisual verification without unnecessary paid generation.",
+      "files": [],
+      "expectations": [
+        "The supplied audio is validated and transcribed before changing browser cue timing.",
+        "The workflow preserves the supplied audio unless validation finds an actual defect.",
+        "The repaired recording starts in Arabic and checks RTL presentation.",
+        "The final result is visually and structurally verified."
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Record a responsive desktop and mobile walkthrough of our staging checkout. Use test data, show the mouse, keep notifications and secrets out of frame, and give me the final video plus a report of everything you checked.",
+      "expected_output": "A scoped multi-format demo specification, privacy-safe test setup, visible-cursor Playwright scenarios, compressed rehearsals, final recordings, and a verification report covering responsive UI and media quality.",
+      "files": [],
+      "expectations": [
+        "The specification distinguishes desktop and mobile output requirements.",
+        "The recording uses non-sensitive test data and prevents secrets or notifications from appearing.",
+        "The automated scenario includes a visible non-blocking cursor and a compressed rehearsal.",
+        "The delivery includes final recordings and an evidence-based verification report."
+      ]
+    }
+  ]
+}

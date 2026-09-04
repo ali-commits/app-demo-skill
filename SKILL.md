@@ -1,6 +1,10 @@
 ---
 name: narrated-app-demo
-description: Create or repair narrated application demos and tutorials, including discovery, specification, localized narration, optional TTS, timestamped browser automation, recording, and verification. Do not use for ordinary E2E testing or standalone audio/video editing.
+description: Create, repair, or quality-review narrated application demos and tutorials. Use this skill whenever a user asks for a product walkthrough, screen tutorial, demo video, narrated onboarding, localized voice-over, ElevenLabs or Gemini speech generation, Playwright recording, visible mouse automation, or synchronization of narration with browser actions. Covers discovery, specification, scripts, storyboards, optional TTS, timestamped recording, and verification; ordinary E2E tests and unrelated media edits remain outside its scope.
+license: MIT
+metadata:
+  version: "1.1.0"
+  compatibility: "Codex and Claude Code; requires filesystem and command execution, Python 3.11+, Bun, Playwright Chromium, and FFmpeg/ffprobe"
 ---
 
 # Narrated App Demo
@@ -16,6 +20,10 @@ Produce a verified demo through explicit approval gates:
 7. Read [verification.md](references/verification.md), inspect the real-time output, and report every limitation.
 
 Never store or commit provider credentials. Never call an incomplete recording complete. Preserve stable chapter identifiers across scripts, audio, timestamps, and browser cues.
+
+## Runtime requirements
+
+Use this skill in Codex or Claude Code with local filesystem and command execution. The bundled workflow requires Python 3.11 or newer, Bun, Playwright Chromium, and FFmpeg with `ffprobe`. Live speech generation additionally requires the selected provider credential; all planning, supplied-audio, browser, and verification stages remain usable without a TTS credential.
 
 ## Included tools
 

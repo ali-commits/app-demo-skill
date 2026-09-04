@@ -1,6 +1,6 @@
 # App Demo Skill
 
-A reusable Codex skill for producing polished, narrated application demos and tutorials. It guides the complete workflow from discovery and specification through narration, voice generation, browser automation, recording, synchronization, and final quality checks.
+An Agentic AI skill compatible with Codex and Claude Code for producing polished, narrated application demos and tutorials. It guides the complete workflow from discovery and specification through narration, voice generation, browser automation, recording, synchronization, and final quality checks.
 
 ## Features
 
@@ -28,7 +28,7 @@ The skill deliberately uses review checkpoints before paid audio generation and 
 
 ## Requirements
 
-- Codex with local skill support
+- Codex or Claude Code with local skill support
 - Python 3.11 or newer
 - FFmpeg and `ffprobe`
 - Bun
@@ -39,7 +39,11 @@ The skill deliberately uses review checkpoints before paid audio generation and 
 
 ```bash
 git clone git@github.com:ali-commits/app-demo-skill.git ~/projects/app-demo-skill
+
+mkdir -p ~/.codex/skills ~/.claude/skills
 ln -s ~/projects/app-demo-skill ~/.codex/skills/narrated-app-demo
+ln -s ~/projects/app-demo-skill ~/.claude/skills/narrated-app-demo
+
 python -m pip install -r ~/projects/app-demo-skill/requirements.txt
 
 cd ~/projects/app-demo-skill/assets/playwright-demo-template
@@ -47,7 +51,7 @@ bun install
 bunx playwright install chromium
 ```
 
-Restart Codex after installing the skill if it does not appear immediately.
+Install only the symlink for the agent you use, or install both to share one checkout between Codex and Claude Code. Restart the agent after installation if the skill does not appear immediately.
 
 ## Provider credentials
 
@@ -64,21 +68,18 @@ Never commit API keys, generated secrets, or populated `.env` files. Provider ca
 
 Audio production is driven by a JSON manifest. It records the provider, voice, model, language, output settings, and either a complete script or a list of timed segments. See the schemas and examples in [`references/audio-production.md`](references/audio-production.md).
 
-Validate a manifest before generating audio:
-
-```bash
-python -m scripts.validate_audio path/to/manifest.json
-```
+The production commands load and validate the manifest before doing work. Start with sample generation so provider settings can be reviewed before producing full chapters.
 
 ## Audio commands
 
 Run these commands from the repository root:
 
 ```bash
-python -m scripts.generate_audio path/to/manifest.json
-python -m scripts.transcribe_audio path/to/narration.mp3
-python -m scripts.assemble_audio path/to/manifest.json
-python -m scripts.validate_audio path/to/manifest.json
+python -m scripts.generate_audio --manifest production.json --chapter 01-introduction --sample
+python -m scripts.generate_audio --manifest production.json --chapter 01-introduction
+python -m scripts.validate_audio chapters/01-introduction.mp3
+python -m scripts.transcribe_audio --manifest production.json --chapter 01-introduction
+python -m scripts.assemble_audio --manifest production.json
 ```
 
 Use `--help` with any command for its complete options. The references explain sample generation, segmented narration, retry behavior, validation, and alignment tradeoffs.
@@ -100,7 +101,9 @@ See [`references/browser-recording.md`](references/browser-recording.md) for app
 Inspect the rendered result rather than relying only on command success:
 
 ```bash
-python -m scripts.inspect_recording path/to/demo.mp4
+python -m scripts.inspect_recording path/to/demo.mp4 \
+  --timing path/to/master.mp3.timing.json \
+  --output artifacts/demo-review
 ```
 
 The inspection workflow checks duration, stream metadata, frame samples, and audiovisual alignment. The full verification checklist is in [`references/verification.md`](references/verification.md).
