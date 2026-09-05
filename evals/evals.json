@@ -60,6 +60,18 @@
         "The fix asserts the opened record's identity rather than only changing which element is clicked.",
         "The recording is re-done and the report states the defect and its fix explicitly."
       ]
+    },
+    {
+      "id": 6,
+      "prompt": "My demo rehearsal is green, but the finished video shows empty form fields in several scenes and one step where the wizard clearly never advanced. Every cue has an expect_text and none of them failed. What is wrong?",
+      "expected_output": "A diagnosis that the assertions were vacuous rather than the recording being correct: expect_text was matched only against rendered text, so cues that prove themselves by a typed value passed on an empty form. The fix inspects form-control values as well as text, re-runs the rehearsal, and re-records.",
+      "files": [],
+      "expectations": [
+        "The response identifies that an input's value is not DOM text, so a text-only expect_text assertion cannot detect an unfilled field.",
+        "The response fixes the assertion helper rather than removing or loosening the failing expectations.",
+        "The response requires a fresh compressed rehearsal and a new real-time take after the fix, and does not treat the existing recording as salvageable.",
+        "The response does not claim the demo is complete while scenes show empty or stale state."
+      ]
     }
   ]
 }

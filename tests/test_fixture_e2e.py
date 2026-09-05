@@ -33,7 +33,8 @@ def test_local_fixture_rehearsal_recording_and_inspection(tmp_path: Path):
             "id": "01-flow", "narration": "Create and complete a profile.",
             "audio_path": audio.name, "duration_seconds": 1.5,
             "cues": [
-                {"id": "enter-name", "at_seconds": 0.2, "action": "Enter a display name"},
+                {"id": "enter-name", "at_seconds": 0.2, "action": "Enter a display name",
+                 "expect_text": "Localized Example"},
                 {"id": "continue", "at_seconds": 0.7, "action": "Continue", "expect_text": "Your profile is ready."}
             ]
         }],
@@ -68,3 +69,6 @@ def test_local_fixture_rehearsal_recording_and_inspection(tmp_path: Path):
     # cue, so the first frame is painted and the container runs the full audio length.
     assert report["opening_frame_blank"] is False
     assert abs(report["duration_seconds"] - 1.5) < 0.1
+    # The `enter-name` cue asserts the value typed into the field. An input's value is
+    # not DOM text, so this run only passes once `expectAfter` inspects form controls
+    # too; a text-only assertion silently passed on an empty form.

@@ -3,7 +3,7 @@ name: narrated-app-demo
 description: Create, repair, or quality-review narrated application demos and tutorials. Use this skill whenever a user asks for a product walkthrough, screen tutorial, demo video, narrated onboarding, localized voice-over, ElevenLabs or Gemini speech generation, Playwright recording, visible mouse automation, or synchronization of narration with browser actions. Covers discovery, specification, scripts, storyboards, optional TTS, timestamped recording, and verification; ordinary E2E tests and unrelated media edits remain outside its scope.
 license: MIT
 metadata:
-  version: "1.2.0"
+  version: "1.3.0"
   compatibility: "Codex and Claude Code; requires filesystem and command execution, Python 3.11+, Bun, Playwright Chromium, and FFmpeg/ffprobe"
 ---
 
@@ -44,5 +44,6 @@ Run scripts from the skill root as modules. Use `python -m scripts.<name> --help
 - Language and locale are forced before the first navigation, and `assertLocale` runs on the opening frame and after every route change.
 - The opening screen is navigated and settled **before** the narration clock starts; that pre-roll is trimmed at mux time.
 - The page is held open ≥2 s after the last cue, and the mux uses `-t <audio duration>`, never `-shortest`.
-- Cues come from `resolveCues(manifest)` (measured times), the cursor is visible and non-blocking, and `expectAfter` asserts each cue's `expect_text`.
+- Cues come from `resolveCues(manifest)` (measured times), the cursor is visible and non-blocking, and `expectAfter` asserts each cue's `expect_text` against both rendered text and form-control values.
+- Visibility is waited for, not sampled, and the browser context grants whatever permissions the demonstrated features need (clipboard, for instance).
 - Helpers never select `.last()` from a text match; anything that can hold prior-run data is matched by the run's unique identifier.

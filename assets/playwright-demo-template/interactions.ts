@@ -43,14 +43,25 @@ export async function clickButton(page: Page, name: string | RegExp, scale: numb
   await clickWithCursor(page, page.getByRole("button", { name, exact: typeof name === "string" }), scale);
 }
 
-/** First *visible* match — pages often render a hidden mobile duplicate of desktop nav. */
-export async function firstVisible(locator: Locator): Promise<Locator | null> {
-  const count = await locator.count();
-  for (let index = 0; index < count; index += 1) {
-    const candidate = locator.nth(index);
-    if (await candidate.isVisible().catch(() => false)) return candidate;
+/**
+ * First *visible* match — pages often render a hidden mobile duplicate of desktop nav.
+ * `isVisible()` does not retry, so a single scan races a step that is still mounting and
+ * reports a control that is plainly on screen as missing; this polls to a timeout.
+ */
+export async function firstVisible(
+  locator: Locator,
+  timeoutMs = 5_000
+): Promise<Locator | null> {
+  const deadline = Date.now() + timeoutMs;
+  for (;;) {
+    const count = await locator.count();
+    for (let index = 0; index < count; index += 1) {
+      const candidate = locator.nth(index);
+      if (await candidate.isVisible().catch(() => false)) return candidate;
+    }
+    if (Date.now() >= deadline) return null;
+    await Bun.sleep(100);
   }
-  return null;
 }
 
 export async function clickVisibleText(page: Page, text: string, scale: number) {
@@ -84,16 +95,39 @@ export async function assertLocale(page: Page, expected: LocaleExpectation, wher
   if (problem) throw new Error(`${where}: ${problem}`);
 }
 
+export type ScreenState = { text: string; values: string[] };
+
+/**
+ * Most cues prove themselves by what was typed, and an input's value is not DOM text: a
+ * text-only assertion passes happily on an empty form. Visible text and form-control
+ * values are therefore both accepted. Kept pure so the rule is unit-testable.
+ */
+export function matchesExpectation(state: ScreenState, expected: string): boolean {
+  const needle = expected.toLowerCase();
+  if (state.text.toLowerCase().includes(needle)) return true;
+  return state.values.some(value => value.toLowerCase().includes(needle));
+}
+
 /**
  * After a cue's action, prove the expected screen appeared. A rehearsal that only proves
  * selectors resolve will happily open a stale record or the wrong tab.
  */
 export async function expectAfter(page: Page, cue: Cue, timeoutMs = 10_000) {
   if (!cue.expectText) return;
-  const target = page.getByText(cue.expectText, { exact: false });
-  try {
-    await target.first().waitFor({ timeout: timeoutMs });
-  } catch {
-    throw new Error(`${cue.name ?? cue.id}: expected "${cue.expectText}" on screen after the action`);
+  const deadline = Date.now() + timeoutMs;
+  for (;;) {
+    // `innerText` reports only rendered text, which also keeps a hidden mobile
+    // navigation's duplicate labels from satisfying an assertion.
+    const state = await page.evaluate(() => ({
+      text: document.body.innerText,
+      values: Array.from(document.querySelectorAll("input, textarea, select")).map(
+        element => (element as HTMLInputElement).value ?? ""
+      ),
+    }));
+    if (matchesExpectation(state, cue.expectText)) return;
+    if (Date.now() >= deadline) {
+      throw new Error(`${cue.name ?? cue.id}: expected "${cue.expectText}" on screen after the action`);
+    }
+    await Bun.sleep(150);
   }
 }

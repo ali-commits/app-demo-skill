@@ -24,6 +24,8 @@ Cues arrive from `resolveCues(manifest)` already on the master timeline, each wi
 
 Give every cue that changes the screen an `expect_text`, and call `expectAfter` once the action completes. A rehearsal that only proves selectors resolve will happily open a stale record, the wrong tab, or last week's email.
 
+Choose an `expect_text` the page can actually show. Most cues fill a field, and an input's **value is not DOM text**: `expectAfter` therefore reads form-control values as well as rendered text. Where neither is available — a read-only summary tab, a checkbox that looks the same either way — assert a line that only that screen renders, such as its help text, rather than a label present before the action.
+
 ## Selection rules learned the hard way
 
 - **Never take `.last()` from a text match.** In any list that can hold previous runs (inboxes, teacher lists, audit logs), the last match is the oldest one. Match on the run's unique identifier and verify what opened.
@@ -33,10 +35,15 @@ Give every cue that changes the screen an `expect_text`, and call `expectAfter` 
 - **Locale changes digits.** Under `ar-SA`, `Intl` renders Arabic-Indic digits; match dates and years with a pattern that accepts both digit sets.
 - **Date pickers keep the displayed month when the year changes.** Step through months until the target day is actually on the grid, and pick a birth date whose month is not the current one to prove it works.
 - **Email preview tools are third-party UIs.** Mailpit and similar have no locale; their chrome stays English and LTR while the message bodies follow the app's locale. Disclose this as a limitation in the report instead of implying the whole recording is localized.
+- **A freshly mounted step is not visible yet.** `isVisible()` does not retry, so a single scan races a wizard step that is still animating in and reports a control plainly on screen as missing. `firstVisible` polls to a timeout; never replace it with a bare `isVisible()` check.
+- **Browser permissions that the app needs must be granted.** A "Copied" confirmation depends on `navigator.clipboard`, which headless Chromium denies by default; grant `clipboard-read`/`clipboard-write` on the context. When an assertion fails on a state the application controls, ask what the browser is withholding before doubting the selector.
+- **A read-only tab may not carry the label its section is named after.** Verify the assertion text against the running application, not against the interface strings file: a key can exist for an edit mode the demo never enters.
 
 ## Two execution passes
 
 First run compressed rehearsal mode. It must exercise every selector, transition, submission, external dependency and `expect_text` assertion while preserving cue order. Expect it to fail several times on application details the storyboard could not know; fix each in the automation, never by weakening an assertion.
+
+Make those failures diagnosable. Playwright reports what was missing, never what was on screen instead, so a failing cue should also capture a screenshot and a slice of the page's visible text — the difference between "the selector is wrong" and "the previous step never submitted" is usually one line of that dump.
 
 Then record against the full master audio. Use a visible 1080p cursor unless the specification requires another format. Hold the final frame at least two seconds after the last cue before closing the page, mux with `-t <audio duration>` rather than `-shortest`, and produce H.264 High-profile video, `yuv420p`, AAC audio, and a broadly playable MP4.
 

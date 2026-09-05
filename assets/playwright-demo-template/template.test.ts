@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { CURSOR_INIT_SCRIPT } from "./cursor";
 import { ffmpegArgs, resolveRecordingConfig } from "./config";
-import { checkLocale } from "./interactions";
+import { checkLocale, firstVisible, matchesExpectation } from "./interactions";
 import { resolveCues, scaledDelay, validateCues } from "./timeline";
 
 describe("recording template", () => {
@@ -87,5 +87,48 @@ describe("recording template", () => {
     expect(checkLocale({ dir: "rtl", lang: "ar-SA" }, { dir: "rtl", lang: "ar" })).toBeNull();
     expect(checkLocale({ dir: "ltr", lang: "ar" }, { dir: "rtl", lang: "ar" })).toMatch(/dir/);
     expect(checkLocale({ dir: "rtl", lang: "en-US" }, { dir: "rtl", lang: "ar" })).toMatch(/lang/);
+  });
+});
+
+describe("post-action expectation", () => {
+  test("accepts a value typed into a field, which carries no DOM text", () => {
+    // Most cues prove themselves by what was typed, and an input's value is not DOM
+    // text: a text-only assertion passes happily on an empty form, so `expect_text` on
+    // every filled field was silently a no-op.
+    expect(
+      matchesExpectation(
+        { text: "Official institution name", values: ["Al-Manarah International Kindergarten"] },
+        "Al-Manarah International Kindergarten"
+      )
+    ).toBe(true);
+  });
+
+  test("still matches rendered text, case-insensitively, and rejects absent content", () => {
+    expect(matchesExpectation({ text: "SUBMITTED", values: [] }, "submitted")).toBe(true);
+    expect(matchesExpectation({ text: "Overview", values: ["12"] }, "Sarah Mansour")).toBe(false);
+  });
+});
+
+describe("visible-match search", () => {
+  test("waits for a match instead of sampling once", async () => {
+    // `isVisible()` does not retry, so a single scan races a wizard step that is still
+    // mounting and reports a control that is plainly on screen as missing.
+    let visible = false;
+    setTimeout(() => {
+      visible = true;
+    }, 120);
+    const locator = {
+      count: async () => 1,
+      nth: () => ({ isVisible: async () => visible }),
+    } as unknown as Parameters<typeof firstVisible>[0];
+    expect(await firstVisible(locator, 2_000)).not.toBeNull();
+  });
+
+  test("gives up at the timeout rather than hanging", async () => {
+    const locator = {
+      count: async () => 1,
+      nth: () => ({ isVisible: async () => false }),
+    } as unknown as Parameters<typeof firstVisible>[0];
+    expect(await firstVisible(locator, 150)).toBeNull();
   });
 });
