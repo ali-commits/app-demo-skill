@@ -1,4 +1,5 @@
 import json
+import hashlib
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -57,3 +58,4 @@ def test_full_coverage_records_word_timestamps(tmp_path: Path):
     output = transcribe(path, "01-intro", model_name="small", threshold=0.9, model=FakeModel([("مرحبا", 0.0), ("بك", 0.4)]))
     payload = json.loads(output.read_text(encoding="utf-8"))
     assert payload["segments"][0]["words"][1]["start"] == pytest.approx(0.4)
+    assert payload["audio_sha256"] == hashlib.sha256(b"audio").hexdigest()

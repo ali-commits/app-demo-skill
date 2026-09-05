@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import hashlib
 import re
 import unicodedata
 from collections import Counter
@@ -66,6 +67,7 @@ def transcribe(
     if chapter is None:
         raise ValueError(f"Unknown chapter: {chapter_id}")
     audio_path = manifest_path.resolve().parent / chapter.audio_path
+    audio_hash = hashlib.sha256(audio_path.read_bytes()).hexdigest()
     if model is None:
         from faster_whisper import WhisperModel
 
@@ -94,6 +96,7 @@ def transcribe(
     output = audio_path.with_suffix(audio_path.suffix + ".transcript.json")
     output.write_text(json.dumps({
         "chapter_id": chapter.id,
+        "audio_sha256": audio_hash,
         "language": detected,
         "coverage": coverage,
         "missing_words": missing,

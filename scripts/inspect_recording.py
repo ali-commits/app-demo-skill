@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import subprocess
 from pathlib import Path
 from typing import Any
@@ -14,7 +15,7 @@ class RecordingInspectionError(RuntimeError):
 def probe(path: Path) -> dict[str, Any]:
     result = subprocess.run([
         "ffprobe", "-v", "error", "-show_entries",
-        "stream=codec_name,codec_type,width,height:format=duration", "-of", "json", str(path),
+        "stream=codec_name,codec_type,width,height,duration:format=duration", "-of", "json", str(path),
     ], text=True, capture_output=True, check=False)
     try:
         return json.loads(result.stdout)
@@ -49,6 +50,22 @@ def inspect_recording(
         failures.append("audio stream is missing")
     elif audio.get("codec_name") != "aac":
         failures.append("audio codec must be aac")
+    stream_durations = {}
+    for name, stream in (("video", video), ("audio", audio)):
+        if stream is None:
+            continue
+        try:
+            seconds = float(stream.get("duration", "nan"))
+        except (TypeError, ValueError):
+            seconds = float("nan")
+        if not math.isfinite(seconds) or seconds <= 0:
+            failures.append(f"{name} stream duration is unavailable or invalid")
+        else:
+            stream_durations[name] = seconds
+            if abs(seconds - expected_duration) > duration_tolerance:
+                failures.append(f"{name} stream duration {seconds:.3f}s differs from narration duration {expected_duration:.3f}s")
+    if len(stream_durations) == 2 and abs(stream_durations["video"] - stream_durations["audio"]) > duration_tolerance:
+        failures.append("audio and video stream durations differ")
     if abs(media_duration - expected_duration) > duration_tolerance:
         failures.append(
             f"recording duration {media_duration:.3f}s differs from audio duration {expected_duration:.3f}s"
@@ -74,6 +91,7 @@ def inspect_recording(
         "recording": str(recording),
         "duration_seconds": media_duration,
         "expected_duration_seconds": expected_duration,
+        "stream_durations": stream_durations,
         "video_codec": video.get("codec_name") if video else None,
         "audio_codec": audio.get("codec_name") if audio else None,
         "width": video.get("width") if video else None,

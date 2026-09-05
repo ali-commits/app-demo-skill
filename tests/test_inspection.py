@@ -65,6 +65,13 @@ def test_inspection_rejects_missing_audio(tmp_path: Path, media):
         inspect_recording(media[1], timing(tmp_path), output_dir=tmp_path / "review", expected_width=320, expected_height=240)
 
 
+def test_inspection_rejects_short_video_despite_matching_container_duration(tmp_path):
+    output = tmp_path / "short-video.mp4"
+    ffmpeg("-f", "lavfi", "-i", "testsrc2=s=320x240:d=1", "-f", "lavfi", "-i", "sine=duration=3", "-c:v", "libx264", "-c:a", "aac", "-t", "3", str(output))
+    with pytest.raises(RecordingInspectionError, match="video.*duration"):
+        inspect_recording(output, timing(tmp_path, duration=3), output_dir=tmp_path / "review", expected_width=320, expected_height=240)
+
+
 def test_inspection_rejects_dimensions_duration_and_late_cues(tmp_path: Path, media):
     with pytest.raises(RecordingInspectionError, match="dimensions"):
         inspect_recording(media[0], timing(tmp_path), output_dir=tmp_path / "a", expected_width=1920, expected_height=1080)

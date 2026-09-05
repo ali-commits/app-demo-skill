@@ -8,6 +8,24 @@ import { checkLocale } from "./interactions";
 import { resolveCues, scaledDelay, validateCues } from "./timeline";
 
 describe("recording template", () => {
+  test("mux really extends a short video to the narration duration", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "demo-padding-"));
+    const video = join(dir, "short.mp4");
+    const audio = join(dir, "audio.wav");
+    const output = join(dir, "result.mp4");
+    const run = async (args: string[]) => {
+      const process = Bun.spawn(args, { stdout: "pipe", stderr: "pipe" });
+      const [stdout, stderr, code] = await Promise.all([new Response(process.stdout).text(), new Response(process.stderr).text(), process.exited]);
+      if (code !== 0) throw new Error(stderr);
+      return stdout;
+    };
+    await run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i", "testsrc2=s=320x240:d=0.5", "-c:v", "libx264", video]);
+    await run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i", "sine=duration=2", audio]);
+    await run(["ffmpeg", ...ffmpegArgs(video, audio, output, { durationSeconds: 2 })]);
+    const probe = JSON.parse(await run(["ffprobe", "-v", "error", "-show_entries", "stream=codec_type,duration", "-of", "json", output]));
+    expect(probe.streams).toHaveLength(2);
+    for (const stream of probe.streams) expect(Math.abs(Number(stream.duration) - 2)).toBeLessThan(0.1);
+  });
   test("rejects unordered and out-of-duration cues", () => {
     expect(() => validateCues([{ id: "b", at: 2, action: "B" }, { id: "a", at: 1, action: "A" }], 3)).toThrow();
     expect(() => validateCues([{ id: "late", at: 4, action: "Late" }], 3)).toThrow();

@@ -3,8 +3,8 @@
 Each anchored cue names a phrase from the *approved narration*. The phrase is located in
 that text (which we control exactly), the approved tokens are aligned to the transcript's
 word stream with a fuzzy sequence match, and the cue takes the measured start time of the
-aligned word. Anchoring to the approved text rather than to the transcript means an ASR
-slip such as «البكالوريوز» for «البكالوريوس» cannot move or lose a cue.
+aligned word. ASR slips can require a neighboring word as a fallback; review warnings
+against the audio before accepting those timings.
 
 Cue times are never estimated from character counts or reading speed.
 """
@@ -14,6 +14,7 @@ from __future__ import annotations
 import argparse
 import difflib
 import json
+import hashlib
 from pathlib import Path
 
 from .manifest import Chapter, load_manifest, save_manifest
@@ -23,10 +24,13 @@ MAX_ALIGNMENT_DRIFT = 3
 
 
 def _phrase_index(approved: list[str], phrase: list[str]) -> int | None:
-    for start in range(len(approved) - len(phrase) + 1):
-        if approved[start : start + len(phrase)] == phrase:
-            return start
-    return None
+    if not phrase:
+        raise ValueError("anchor must contain spoken words")
+    matches = [start for start in range(len(approved) - len(phrase) + 1)
+               if approved[start : start + len(phrase)] == phrase]
+    if len(matches) > 1:
+        raise ValueError("ambiguous anchor: use a longer phrase unique within the chapter")
+    return matches[0] if matches else None
 
 
 def _alignment(approved: list[str], spoken: list[str]) -> dict[int, int]:
@@ -54,8 +58,8 @@ def resolve_chapter(chapter: Chapter, transcript: dict) -> list[str]:
     starts: list[float] = []
     for word in words:
         tokens = normalize_words(word["word"])
-        if tokens:
-            spoken.append(tokens[0])
+        for token in tokens:
+            spoken.append(token)
             starts.append(float(word["start"]))
     approved = normalize_words(chapter.narration)
     mapping = _alignment(approved, spoken)
@@ -74,18 +78,20 @@ def resolve_chapter(chapter: Chapter, transcript: dict) -> list[str]:
             raise ValueError(f"{chapter.id}/{cue.id}: no transcript word aligns with the anchor")
         spoken_index, distance = aligned
         if distance > MAX_ALIGNMENT_DRIFT:
+            raise ValueError(f"{chapter.id}/{cue.id}: alignment is {distance} tokens away; check the transcript")
+        if distance:
             warnings.append(
                 f"{chapter.id}/{cue.id}: nearest aligned word is {distance} tokens away; check the transcript"
             )
         cue.at_seconds = round(starts[spoken_index], 3)
 
-    # Times must stay strictly increasing for the scheduler; nudge exact ties apart.
+    # Never manufacture timings to hide ambiguous or reversed actions.
     previous = -1.0
     for cue in chapter.cues:
         if cue.at_seconds is None:
             continue
         if cue.at_seconds <= previous:
-            cue.at_seconds = round(previous + 0.05, 3)
+            raise ValueError(f"{chapter.id}/{cue.id}: cue times must be strictly increasing; review anchors and action order")
         previous = cue.at_seconds
     return warnings
 
@@ -95,7 +101,7 @@ def derive_cues(manifest_path: Path) -> list[str]:
     root = manifest_path.resolve().parent
     warnings: list[str] = []
     for chapter in manifest.chapters:
-        if not chapter.unresolved_cues:
+        if not any(cue.anchor is not None for cue in chapter.cues):
             continue
         transcript_path = root / f"{chapter.audio_path}.transcript.json"
         if not transcript_path.exists():
@@ -103,6 +109,9 @@ def derive_cues(manifest_path: Path) -> list[str]:
                 f"{chapter.id}: transcribe the chapter before deriving cues ({transcript_path})"
             )
         transcript = json.loads(transcript_path.read_text(encoding="utf-8"))
+        audio_hash = hashlib.sha256((root / chapter.audio_path).read_bytes()).hexdigest()
+        if transcript.get("audio_sha256") != audio_hash or transcript.get("chapter_id") != chapter.id:
+            raise ValueError(f"{chapter.id}: transcript does not identify the current audio; transcribe the chapter again")
         warnings.extend(resolve_chapter(chapter, transcript))
     # Re-validate ordering now that every cue carries a time.
     manifest = manifest.model_validate(manifest.model_dump())

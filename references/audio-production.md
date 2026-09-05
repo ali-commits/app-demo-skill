@@ -74,7 +74,9 @@ Every action cue in the manifest carries an `anchor`: the phrase from the approv
 python -m scripts.derive_cues --manifest production.json
 ```
 
-Each anchor is located in the approved text, aligned to the transcript's word stream, and given the measured start time of its first word. Anchoring to the approved text rather than to the transcript means an ASR slip cannot move or lose a cue. Warnings name any anchor whose nearest aligned word is several tokens away — check those against the transcript before recording.
+Use an anchor phrase that occurs exactly once in its chapter. Each anchor is aligned to the transcript's word stream and assigned a measured timestamp. ASR mistakes may require a neighboring word as a fallback; review every warning against the audio. Ambiguous phrases, distant alignments, and non-increasing cue times are rejected instead of silently adjusted.
+
+Every run recomputes anchored cues, including previously resolved ones. Transcripts include the source audio's SHA-256 fingerprint; missing or mismatched fingerprints require re-transcription. After replacing audio, transcribe, derive cues, and assemble again. Older transcripts must be regenerated once to include this fingerprint.
 
 ## Mastering
 

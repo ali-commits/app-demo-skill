@@ -1,4 +1,5 @@
 import json
+import hashlib
 from pathlib import Path
 
 import pytest
@@ -15,6 +16,7 @@ def write_production(tmp_path: Path, narration: str, cues: list[dict], spoken: l
     words = [{"start": at, "end": at + 0.3, "word": f" {word}"} for word, at in spoken]
     Path(f"{audio}.transcript.json").write_text(json.dumps({
         "chapter_id": "01-intro", "language": "ar", "coverage": 1.0,
+        "audio_sha256": hashlib.sha256(b"audio").hexdigest(),
         "transcript": " ".join(word for word, _ in spoken),
         "segments": [{"start": 0, "end": words[-1]["end"], "text": "", "words": words}],
     }, ensure_ascii=False), encoding="utf-8")
@@ -26,6 +28,38 @@ def write_production(tmp_path: Path, narration: str, cues: list[dict], spoken: l
         "master_audio_path": "master.mp3",
     }, ensure_ascii=False), encoding="utf-8")
     return manifest
+
+
+def test_rederive_refreshes_existing_times(tmp_path):
+    path = write_production(tmp_path, "hello world", [{"id": "open", "anchor": "hello", "action": "Open"}], [("hello", 1), ("world", 2)])
+    derive_cues(path)
+    transcript = tmp_path / "chapters/01-intro.mp3.transcript.json"
+    payload = json.loads(transcript.read_text())
+    payload["segments"][0]["words"][0]["start"] = 5
+    transcript.write_text(json.dumps(payload))
+    derive_cues(path)
+    assert load_manifest(path).chapters[0].cues[0].at_seconds == 5
+
+
+def test_stale_audio_transcript_is_rejected(tmp_path):
+    path = write_production(tmp_path, "hello", [{"id": "open", "anchor": "hello", "action": "Open"}], [("hello", 1)])
+    (tmp_path / "chapters/01-intro.mp3").write_bytes(b"new recording")
+    with pytest.raises(ValueError, match="transcribe"):
+        derive_cues(path)
+
+
+def test_repeated_anchor_requires_disambiguation(tmp_path):
+    path = write_production(tmp_path, "click continue then click continue", [{"id": "open", "anchor": "click continue", "action": "Open"}], [("click", 0), ("continue", 1), ("then", 2), ("click", 10), ("continue", 11)])
+    with pytest.raises(ValueError, match="ambiguous"):
+        derive_cues(path)
+
+
+def test_reversed_anchors_are_rejected_without_saving(tmp_path):
+    path = write_production(tmp_path, "first second", [{"id": "second", "anchor": "second", "action": "Second"}, {"id": "first", "anchor": "first", "action": "First"}], [("first", 0), ("second", 10)])
+    original = path.read_bytes()
+    with pytest.raises(ValueError, match="strictly increasing"):
+        derive_cues(path)
+    assert path.read_bytes() == original
 
 
 def test_cue_accepts_an_anchor_phrase_without_a_time():

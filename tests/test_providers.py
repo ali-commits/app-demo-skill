@@ -94,6 +94,26 @@ def two_chapter_manifest(tmp_path):
     return manifest
 
 
+def test_regeneration_invalidates_derived_timing(monkeypatch, tmp_path):
+    from scripts.manifest import load_manifest, save_manifest, Cue
+    from scripts.providers import GeneratedAudio
+    from types import SimpleNamespace
+
+    path = two_chapter_manifest(tmp_path)
+    manifest = load_manifest(path)
+    chapter = manifest.chapters[0]
+    chapter.duration_seconds = 10
+    chapter.transcript = "old transcript"
+    chapter.cues = [Cue(id="open", anchor="مرحبًا", at_seconds=1, action="Open")]
+    save_manifest(path, manifest)
+    monkeypatch.setattr("scripts.generate_audio.provider_for", lambda _: SimpleNamespace(generate=lambda *args, **kwargs: GeneratedAudio(b"new audio", ".mp3", {})))
+    generate(path, chapter.id, sample=False, force=True)
+    updated = load_manifest(path).chapters[0]
+    assert updated.duration_seconds is None
+    assert updated.transcript is None
+    assert updated.cues[0].at_seconds is None
+
+
 def test_estimate_reports_billable_characters_without_calling_the_provider(monkeypatch, tmp_path):
     from scripts.generate_audio import estimate
 

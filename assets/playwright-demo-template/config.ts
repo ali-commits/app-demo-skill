@@ -34,6 +34,8 @@ export function ffmpegArgs(video: string, audio: string, output: string, options
     ...(trimSeconds > 0 ? ["-ss", trimSeconds.toFixed(3)] : []),
     "-i", video,
     "-i", audio,
+    "-map", "0:v:0", "-map", "1:a:0",
+    ...(durationSeconds ? ["-vf", `tpad=stop_mode=clone:stop_duration=${durationSeconds.toFixed(3)}`] : []),
     "-c:v", "libx264", "-profile:v", "high", "-crf", "18", "-pix_fmt", "yuv420p",
     "-c:a", "aac", "-b:a", "192k",
     // Never `-shortest`: a capture that ends a few hundred milliseconds early would

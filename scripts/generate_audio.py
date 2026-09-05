@@ -81,6 +81,11 @@ def generate(
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_bytes(generated.content)
     if not sample:
+        chapter.duration_seconds = None
+        chapter.transcript = None
+        for cue in chapter.cues:
+            if cue.anchor is not None:
+                cue.at_seconds = None
         chapter.audio_path = str(output.relative_to(root))
         chapter.narration_sha256 = hashlib.sha256(chapter.narration.encode("utf-8")).hexdigest()
         chapter.generation_metadata = generated.metadata
