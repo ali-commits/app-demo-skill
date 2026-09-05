@@ -30,6 +30,20 @@ Use the same IDs in filenames, the production manifest, generated audio, transcr
 
 Chapters should be coherent scenes, not individual sentences. Aim for repairable sections of roughly 20–90 seconds unless the workflow naturally requires a different length.
 
+## Anchor every action
+
+For each browser action in the storyboard, name the exact phrase in the narration that introduces it — the words the viewer hears as the cursor moves. These become the `anchor` of each cue in the manifest and are resolved to measured times after the audio exists. Choose phrases that:
+
+- Are unique within the chapter and quoted verbatim from the approved text.
+- Begin at the moment the action should start, not at the end of the sentence.
+- Describe purpose ("في حقل الاسم الرسمي…") rather than a bare verb that recurs.
+
+Also name the on-screen text that proves the action worked (`expect_text`): the new step's heading, the record's name, the confirmation line.
+
+## Duration discipline
+
+Word counts mislead across languages. Treat pre-audition duration figures as rough, and expect to re-size the script once the first audition has measured the real delivery rate (see audio-production.md). Keep the approved ceiling in view when writing: every field-by-field sentence costs seconds the dense chapters cannot spare.
+
 ## Review package
 
 Present:

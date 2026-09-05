@@ -75,23 +75,31 @@ The production commands load and validate the manifest before doing work. Start 
 Run these commands from the repository root:
 
 ```bash
+python -m scripts.init_manifest narration.md --output production.json --title "Demo" \
+  --locale ar-SA --provider elevenlabs --model eleven_multilingual_v2 --voice-id <id> --language ar
+python -m scripts.generate_audio --manifest production.json --estimate
 python -m scripts.generate_audio --manifest production.json --chapter 01-introduction --sample
+python -m scripts.generate_audio --manifest production.json --chapter 01-introduction --sample --voice <other-id>
+python -m scripts.generate_audio --manifest production.json --estimate --audition-characters 224 --audition-seconds 20.5
 python -m scripts.generate_audio --manifest production.json --chapter 01-introduction
 python -m scripts.validate_audio chapters/01-introduction.mp3
 python -m scripts.transcribe_audio --manifest production.json --chapter 01-introduction
+python -m scripts.derive_cues --manifest production.json
 python -m scripts.assemble_audio --manifest production.json
 ```
 
-Use `--help` with any command for its complete options. The references explain sample generation, segmented narration, retry behavior, validation, and alignment tradeoffs.
+Use `--help` with any command for its complete options. The references explain sample generation, cost estimation, duration projection, cue anchoring, validation, and alignment tradeoffs.
+
+Cues are anchored to narration phrases in the manifest and resolved to measured word timestamps by `derive_cues`; the recorder never times an action from estimated reading speed.
 
 ## Browser recording
 
-The template in [`assets/playwright-demo-template`](assets/playwright-demo-template) provides a visible mouse cursor, deterministic actions, timing controls, recording, and muxing hooks. Copy the template into a demo workspace, configure its manifest and scenario, then rehearse before recording.
+The template in [`assets/playwright-demo-template`](assets/playwright-demo-template) provides a visible mouse cursor, cursor-aware interaction helpers, a locale assertion, per-cue on-screen assertions, timing controls, recording, and muxing. It settles the opening screen before the narration clock starts and trims that pre-roll, holds the final frame past the last cue, and muxes to the audio's length rather than the shorter stream. Copy the template into a demo workspace — or adapt an existing recorder to the same contract — configure its manifest and scenario, then rehearse before recording.
 
 ```bash
 cd assets/playwright-demo-template
-bun run rehearse.ts
-bun run record.ts
+bun run rehearse
+bun run record
 ```
 
 See [`references/browser-recording.md`](references/browser-recording.md) for application readiness, viewport selection, cursor behavior, and production guidance.

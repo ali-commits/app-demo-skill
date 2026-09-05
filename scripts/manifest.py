@@ -32,8 +32,10 @@ class VoiceConfig(BaseModel):
 
 class Cue(BaseModel):
     id: str
-    at_seconds: float = Field(ge=0)
+    anchor: str | None = Field(default=None, min_length=1)
+    at_seconds: float | None = Field(default=None, ge=0)
     action: str = Field(min_length=1)
+    expect_text: str | None = Field(default=None, min_length=1)
 
     @field_validator("id")
     @classmethod
@@ -41,6 +43,12 @@ class Cue(BaseModel):
         if not ID_PATTERN.fullmatch(value):
             raise ValueError("cue id must use lowercase kebab-case")
         return value
+
+    @model_validator(mode="after")
+    def anchored_or_timed(self) -> "Cue":
+        if self.anchor is None and self.at_seconds is None:
+            raise ValueError("cue needs an anchor phrase or an explicit at_seconds")
+        return self
 
 
 class Chapter(BaseModel):
@@ -60,13 +68,17 @@ class Chapter(BaseModel):
             raise ValueError("chapter id must use lowercase kebab-case")
         return value
 
+    @property
+    def unresolved_cues(self) -> list[Cue]:
+        return [cue for cue in self.cues if cue.at_seconds is None]
+
     @model_validator(mode="after")
     def ordered_cues(self) -> "Chapter":
-        times = [cue.at_seconds for cue in self.cues]
+        times = [cue.at_seconds for cue in self.cues if cue.at_seconds is not None]
         if times != sorted(times) or len(times) != len(set(times)):
             raise ValueError("cue times must be strictly increasing")
         if self.duration_seconds is not None and any(
-            cue.at_seconds > self.duration_seconds for cue in self.cues
+            time > self.duration_seconds for time in times
         ):
             raise ValueError("cue times must not exceed chapter duration")
         return self

@@ -57,9 +57,20 @@ def inspect_recording(
     if any(float(cue["master_at_seconds"]) > media_duration for cue in cues):
         failures.append("a cue exceeds the recording duration")
 
+    warnings: list[str] = []
+    opening_blank = None
+    if not failures:
+        opening_blank = frame_is_blank(recording, 0.0)
+        if opening_blank:
+            warnings.append(
+                "opening frame is blank: navigate and settle the page before the narration "
+                "clock starts, then trim the pre-roll at mux time"
+            )
+
     report = {
         "passed": not failures,
         "failures": failures,
+        "warnings": warnings,
         "recording": str(recording),
         "duration_seconds": media_duration,
         "expected_duration_seconds": expected_duration,
@@ -67,6 +78,7 @@ def inspect_recording(
         "audio_codec": audio.get("codec_name") if audio else None,
         "width": video.get("width") if video else None,
         "height": video.get("height") if video else None,
+        "opening_frame_blank": opening_blank,
     }
     output_dir.mkdir(parents=True, exist_ok=True)
     (output_dir / "verification.json").write_text(
@@ -77,19 +89,51 @@ def inspect_recording(
 
     frames = output_dir / "frames"
     frames.mkdir(exist_ok=True)
+    last = max(0, media_duration - 0.04)
     for chapter in timing.get("chapters", []):
         boundary = float(chapter["offset_seconds"])
-        for label, seconds in (
+        samples = [
             ("before", max(0, boundary - 1)),
-            ("at", min(boundary, max(0, media_duration - 0.04))),
-            ("after", min(boundary + 2, max(0, media_duration - 0.04))),
-        ):
-            destination = frames / f"{chapter['id']}-{label}.png"
-            subprocess.run([
-                "ffmpeg", "-v", "error", "-y", "-ss", str(seconds), "-i", str(recording),
-                "-frames:v", "1", str(destination),
-            ], check=True)
+            ("at", min(boundary, last)),
+            ("after", min(boundary + 2, last)),
+        ]
+        # One frame shortly after every cue as well: chapter boundaries alone missed a
+        # stale record opened mid-chapter, which only a per-action frame reveals.
+        samples.extend(
+            (cue["id"], min(float(cue["master_at_seconds"]) + CUE_FRAME_DELAY, last))
+            for cue in chapter.get("cues", [])
+        )
+        for label, seconds in samples:
+            extract_frame(recording, seconds, frames / f"{chapter['id']}-{label}.png")
     return report
+
+
+CUE_FRAME_DELAY = 1.0
+
+
+def extract_frame(recording: Path, seconds: float, destination: Path) -> None:
+    subprocess.run([
+        "ffmpeg", "-v", "error", "-y", "-ss", str(seconds), "-i", str(recording),
+        "-frames:v", "1", str(destination),
+    ], check=True)
+
+
+def frame_is_blank(recording: Path, seconds: float, *, threshold: float = 2.0) -> bool:
+    """True when the frame has almost no luminance range — a white or black page."""
+    result = subprocess.run([
+        "ffmpeg", "-v", "info", "-ss", str(seconds), "-i", str(recording), "-frames:v", "1",
+        "-vf", "signalstats,metadata=print:key=lavfi.signalstats.YMIN,metadata=print:key=lavfi.signalstats.YMAX",
+        "-f", "null", "-",
+    ], text=True, capture_output=True, check=False)
+    values = {}
+    for line in result.stderr.splitlines():
+        for key in ("YMIN", "YMAX"):
+            marker = f"lavfi.signalstats.{key}="
+            if marker in line:
+                values[key] = float(line.split(marker, 1)[1].strip())
+    if "YMIN" not in values or "YMAX" not in values:
+        return False
+    return (values["YMAX"] - values["YMIN"]) <= threshold
 
 
 def main() -> None:

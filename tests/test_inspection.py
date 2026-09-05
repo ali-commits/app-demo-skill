@@ -42,6 +42,24 @@ def test_inspection_accepts_matching_media_and_extracts_frames(tmp_path: Path, m
     assert list((tmp_path / "review" / "frames").glob("*.png"))
 
 
+def test_inspection_extracts_a_frame_after_every_cue(tmp_path: Path, media):
+    inspect_recording(media[0], timing(tmp_path, cue=0.3), output_dir=tmp_path / "review", expected_width=320, expected_height=240)
+    names = {path.name for path in (tmp_path / "review" / "frames").glob("*.png")}
+    assert "01-intro-open.png" in names, "each cue needs its own frame, not only chapter boundaries"
+
+
+def test_inspection_flags_a_blank_opening_frame(tmp_path: Path):
+    blank = tmp_path / "blank.mp4"
+    ffmpeg(
+        "-f", "lavfi", "-i", "color=c=white:s=320x240:d=1",
+        "-f", "lavfi", "-i", "sine=frequency=440:duration=1",
+        "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac", "-shortest", str(blank),
+    )
+    report = inspect_recording(blank, timing(tmp_path), output_dir=tmp_path / "review", expected_width=320, expected_height=240)
+    assert report["opening_frame_blank"] is True
+    assert any("opening frame" in warning for warning in report["warnings"])
+
+
 def test_inspection_rejects_missing_audio(tmp_path: Path, media):
     with pytest.raises(RecordingInspectionError, match="audio"):
         inspect_recording(media[1], timing(tmp_path), output_dir=tmp_path / "review", expected_width=320, expected_height=240)

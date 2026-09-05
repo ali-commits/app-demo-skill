@@ -36,6 +36,30 @@
         "The automated scenario includes a visible non-blocking cursor and a compressed rehearsal.",
         "The delivery includes final recordings and an evidence-based verification report."
       ]
+    },
+    {
+      "id": 4,
+      "prompt": "Here is my approved Arabic narration for a six-minute onboarding video. The first ElevenLabs audition of chapter one came back at 20.5 seconds for 224 characters. Generate the rest.",
+      "expected_output": "Before generating the remaining chapters, the workflow projects the full script from the audition's measured rate, notices it overruns the six-minute ceiling, trims restatement without dropping instructions, re-presents the changed lines for approval, and only then spends credits.",
+      "files": [],
+      "expectations": [
+        "The total duration is projected from the measured audition rate, not from word counts.",
+        "Generation is paused when the projection exceeds the approved ceiling.",
+        "Trimmed narration is shown to the user for approval before full generation.",
+        "The audition sample is not regenerated unnecessarily."
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "The demo recorded fine and the inspector passed, but I have a feeling the email chapter is showing a confirmation from one of the earlier rehearsal runs rather than this take. Check and fix it.",
+      "expected_output": "Per-cue frames are inspected, the email is confirmed to belong to a previous run by its unique recipient identifier, the selector that chose the oldest text match is replaced with one keyed on the run's identifier plus an on-screen assertion, and the take is re-recorded and re-verified.",
+      "files": [],
+      "expectations": [
+        "Verification goes beyond chapter-boundary frames to the frame after the affected cue.",
+        "The defect is attributed to a non-unique text match in a list containing prior-run data.",
+        "The fix asserts the opened record's identity rather than only changing which element is clicked.",
+        "The recording is re-done and the report states the defect and its fix explicitly."
+      ]
     }
   ]
 }

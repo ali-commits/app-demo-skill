@@ -56,6 +56,18 @@ def test_normalized_transcript_coverage():
     assert coverage_ratio(approved, normalize_words("halo")) < 0.5
 
 
+def test_normalized_arabic_word_with_tanween_is_a_single_token():
+    # Combining marks are not word characters: tokenising before stripping them splits
+    # "لاحقًا" into "لاحق" + "ا", and every diacritised word then counts as missing.
+    assert normalize_words("لاحقًا") == ["لاحقا"]
+
+
+def test_coverage_ignores_arabic_diacritics_and_orthographic_variants():
+    approved = normalize_words("خطوةً بخطوة، ثم نُحدّد نوع المؤسسة لاحقًا إلى إكمال")
+    spoken = normalize_words("خطوة بخطوة ثم نحدد نوع الموسسة لاحقا الى اكمال")
+    assert coverage_ratio(approved, spoken) == 1.0
+
+
 def test_assembly_adds_gap_and_writes_timing(tmp_path: Path, tones):
     manifest_path = tmp_path / "manifest.json"
     manifest_path.write_text(json.dumps({

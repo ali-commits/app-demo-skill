@@ -34,7 +34,7 @@ def test_local_fixture_rehearsal_recording_and_inspection(tmp_path: Path):
             "audio_path": audio.name, "duration_seconds": 1.5,
             "cues": [
                 {"id": "enter-name", "at_seconds": 0.2, "action": "Enter a display name"},
-                {"id": "continue", "at_seconds": 0.7, "action": "Continue"}
+                {"id": "continue", "at_seconds": 0.7, "action": "Continue", "expect_text": "Your profile is ready."}
             ]
         }],
         "master_audio_path": audio.name,
@@ -64,3 +64,7 @@ def test_local_fixture_rehearsal_recording_and_inspection(tmp_path: Path):
     recording = tmp_path / "recording" / "narrated-demo.mp4"
     report = inspect_recording(recording, timing, output_dir=tmp_path / "review")
     assert report["passed"] is True
+    # The template must settle the page before the clock starts and hold past the last
+    # cue, so the first frame is painted and the container runs the full audio length.
+    assert report["opening_frame_blank"] is False
+    assert abs(report["duration_seconds"] - 1.5) < 0.1

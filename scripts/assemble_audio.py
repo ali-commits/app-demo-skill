@@ -11,6 +11,14 @@ from .validate_audio import probe_audio, validate_audio
 
 def assemble(manifest_path: Path) -> tuple[Path, Path]:
     manifest = load_manifest(manifest_path)
+    unresolved = [
+        f"{chapter.id}/{cue.id}" for chapter in manifest.chapters for cue in chapter.unresolved_cues
+    ]
+    if unresolved:
+        raise ValueError(
+            "run derive_cues before assembling; anchored cues still have no time: "
+            + ", ".join(unresolved)
+        )
     root = manifest_path.resolve().parent
     sources = [root / chapter.audio_path for chapter in manifest.chapters]
     infos = [validate_audio(source) for source in sources]

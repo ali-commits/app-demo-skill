@@ -1,5 +1,6 @@
 faster-whisper>=1.2,<2
-google-genai>=1.0,<2
 httpx>=0.28,<1
 pydantic>=2.12,<3
 pytest>=9,<10
+# Only needed when generating speech with Gemini; ElevenLabs uses httpx alone.
+google-genai>=1.0,<2

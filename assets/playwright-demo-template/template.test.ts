@@ -1,7 +1,11 @@
 import { describe, expect, test } from "bun:test";
+import { mkdtemp, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { CURSOR_INIT_SCRIPT } from "./cursor";
 import { ffmpegArgs, resolveRecordingConfig } from "./config";
-import { scaledDelay, validateCues } from "./timeline";
+import { checkLocale } from "./interactions";
+import { resolveCues, scaledDelay, validateCues } from "./timeline";
 
 describe("recording template", () => {
   test("rejects unordered and out-of-duration cues", () => {
@@ -19,12 +23,51 @@ describe("recording template", () => {
     expect(CURSOR_INIT_SCRIPT).toContain("pointer-events:none");
   });
 
-  test("defaults to 1080p and compatible muxing", () => {
-    const config = resolveRecordingConfig(["--manifest", "production.json"], "/demo");
+  test("defaults to 1080p and takes the locale from the manifest", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "demo-"));
+    await writeFile(join(dir, "production.json"), JSON.stringify({
+      locale: "ar-SA", master_audio_path: "master.mp3", chapters: [],
+    }));
+    const config = resolveRecordingConfig(["--manifest", "production.json"], dir);
     expect(config.viewport).toEqual({ width: 1920, height: 1080 });
+    expect(config.locale).toBe("ar-SA");
     expect(config.localeInitScript).toContain("demo-locale");
-    expect(ffmpegArgs("raw.webm", "master.wav", "final.mp4")).toEqual(expect.arrayContaining([
-      "libx264", "yuv420p", "aac", "-shortest"
-    ]));
+  });
+
+  test("muxing trims the pre-roll and pads to the audio length instead of cutting to the shorter stream", () => {
+    const args = ffmpegArgs("raw.webm", "master.wav", "final.mp4", { trimSeconds: 1.25, durationSeconds: 317.63 });
+    expect(args).toEqual(expect.arrayContaining(["libx264", "yuv420p", "aac"]));
+    // -ss must precede the video input so the blank pre-roll is dropped from the picture only.
+    expect(args.indexOf("-ss")).toBeLessThan(args.indexOf("raw.webm"));
+    expect(args[args.indexOf("-ss") + 1]).toBe("1.250");
+    // `-shortest` silently clipped the last words of narration whenever the capture
+    // ended a few hundred milliseconds early; the output must run the audio's length.
+    expect(args).not.toContain("-shortest");
+    expect(args[args.indexOf("-t") + 1]).toBe("317.630");
+  });
+
+  test("resolves chapter-relative cues to master offsets once, including the gap", () => {
+    const cues = resolveCues({
+      locale: "ar-SA",
+      master_audio_path: "master.mp3",
+      chapter_gap_seconds: 0.5,
+      chapters: [
+        { id: "01-a", duration_seconds: 10, cues: [{ id: "one", at_seconds: 2, action: "One" }] },
+        { id: "02-b", duration_seconds: 5, cues: [{ id: "two", at_seconds: 1, action: "Two", expect_text: "Done" }] },
+      ],
+    });
+    expect(cues.map(cue => [cue.id, cue.at])).toEqual([["one", 2], ["two", 11.5]]);
+    expect(cues[1].expectText).toBe("Done");
+    expect(cues[1].name).toContain("02-b");
+  });
+
+  test("an unreadable manifest fails immediately with its path", () => {
+    expect(() => resolveRecordingConfig(["--manifest", "missing.json"], "/nowhere")).toThrow(/missing\.json/);
+  });
+
+  test("locale check requires both direction and language to match", () => {
+    expect(checkLocale({ dir: "rtl", lang: "ar-SA" }, { dir: "rtl", lang: "ar" })).toBeNull();
+    expect(checkLocale({ dir: "ltr", lang: "ar" }, { dir: "rtl", lang: "ar" })).toMatch(/dir/);
+    expect(checkLocale({ dir: "rtl", lang: "en-US" }, { dir: "rtl", lang: "ar" })).toMatch(/lang/);
   });
 });

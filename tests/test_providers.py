@@ -80,6 +80,59 @@ def test_gemini_wraps_pcm_as_mono_24khz_wav(monkeypatch):
     assert result.extension == ".wav"
 
 
+def two_chapter_manifest(tmp_path):
+    manifest = tmp_path / "production.json"
+    manifest.write_text(json.dumps({
+        "title": "Fixture", "locale": "ar-SA",
+        "voice": {"provider": "elevenlabs", "model": "model-1", "voice_id": "voice-1", "language": "ar"},
+        "chapters": [
+            {"id": "01-intro", "narration": "مرحبًا بك", "audio_path": "audio/intro.mp3"},
+            {"id": "02-form", "narration": "اكتب الاسم الرسمي", "audio_path": "audio/form.mp3"},
+        ],
+        "master_audio_path": "audio/master.mp3"
+    }, ensure_ascii=False), encoding="utf-8")
+    return manifest
+
+
+def test_estimate_reports_billable_characters_without_calling_the_provider(monkeypatch, tmp_path):
+    from scripts.generate_audio import estimate
+
+    def forbidden(_voice):
+        raise AssertionError("estimating must not create a provider")
+
+    monkeypatch.setattr("scripts.generate_audio.provider_for", forbidden)
+    report = estimate(two_chapter_manifest(tmp_path))
+    assert report["chapters"] == {"01-intro": 9, "02-form": 17}
+    assert report["total_characters"] == 26
+
+
+def test_estimate_projects_duration_from_a_measured_audition(monkeypatch, tmp_path):
+    from scripts.generate_audio import estimate
+
+    # A 9-character audition that measured 1.5 s implies 6 chars/s for the whole script.
+    report = estimate(two_chapter_manifest(tmp_path), audition_characters=9, audition_seconds=1.5)
+    assert report["projected_seconds"] == pytest.approx(26 / 6, abs=0.01)
+
+
+def test_sample_can_audition_a_different_voice_without_editing_the_manifest(monkeypatch, tmp_path):
+    from scripts import generate_audio
+
+    seen = {}
+
+    class Provider:
+        def generate(self, text, voice, *, previous_text="", next_text=""):
+            seen["voice_id"] = voice.voice_id
+            return generate_audio.GeneratedAudio(b"mp3", ".mp3", {})
+
+    monkeypatch.setattr("scripts.generate_audio.provider_for", lambda _voice: Provider())
+    manifest = two_chapter_manifest(tmp_path)
+    output = generate_audio.generate(manifest, "01-intro", sample=True, force=False, voice_id="other-voice")
+    assert seen["voice_id"] == "other-voice"
+    assert output.name == "01-intro-other-voice.mp3"
+    # The manifest's own voice must not be touched by an audition.
+    assert json.loads(manifest.read_text())["voice"]["voice_id"] == "voice-1"
+
+
 def test_generation_refuses_existing_output_before_calling_provider(monkeypatch, tmp_path):
     manifest = tmp_path / "production.json"
     manifest.write_text(json.dumps({

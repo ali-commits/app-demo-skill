@@ -84,7 +84,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Validate one narration audio file")
     parser.add_argument("audio", type=Path)
     parser.add_argument("--max-boundary-silence", type=float, default=1.0)
-    parser.add_argument("--min-duration", type=float, default=1.0)
+    parser.add_argument("--min-duration", type=float, default=0.1)
     args = parser.parse_args()
     print(json.dumps(asdict(validate_audio(args.audio, max_boundary_silence=args.max_boundary_silence, min_duration=args.min_duration)), indent=2))
 

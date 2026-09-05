@@ -31,8 +31,8 @@ def test_skill_evals_are_realistic_and_objectively_checkable() -> None:
     payload = json.loads((ROOT / "evals" / "evals.json").read_text(encoding="utf-8"))
 
     assert payload["skill_name"] == "narrated-app-demo"
-    assert len(payload["evals"]) == 3
-    assert len({item["id"] for item in payload["evals"]}) == 3
+    assert len(payload["evals"]) >= 3
+    assert len({item["id"] for item in payload["evals"]}) == len(payload["evals"])
     for item in payload["evals"]:
         assert item["prompt"]
         assert item["expected_output"]
